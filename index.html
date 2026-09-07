@@ -243,7 +243,7 @@
 
   <div class="step" id="stepReview">
     <div class="review-note">
-      사진에서 자동으로 읽어낸 결과예요. OCR이 완벽하지 않을 수 있으니 단어 / 뜻 / 한국어 뜻을 확인하고 틀린 부분은 직접 고쳐주세요.
+      자동 인식에서 단어를 충분히 찾지 못했어요. 아래에서 단어 / 뜻 / 한국어 뜻을 채우거나 고친 뒤 게임을 시작해주세요.
     </div>
     <div id="rowsContainer"></div>
     <button class="add-row-btn" id="addRowBtn">+ 단어 직접 추가하기</button>
@@ -344,8 +344,20 @@ ocrBtn.addEventListener('click', async () => {
     });
     const rawText = result.data.text;
     const parsed = parseVocabText(rawText);
-    renderReviewRows(parsed.length ? parsed : [emptyRow()]);
-    showStep('stepReview');
+
+    if (parsed.length >= 2) {
+      words = parsed.map(r => ({
+        w: r.word,
+        pos: r.pos,
+        def: r.def || r.kr,
+        kr: r.kr || r.def
+      }));
+      showStep('stepGame');
+      startGame();
+    } else {
+      renderReviewRows(parsed.length ? parsed : [emptyRow()]);
+      showStep('stepReview');
+    }
   } catch (err) {
     progressLabel.textContent = '인식에 실패했어요. 사진을 다시 올려주세요.';
     setTimeout(() => showStep('stepUpload'), 1800);
