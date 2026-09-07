@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>단어 퀴즈 게임</title>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <style>
   * { box-sizing: border-box; }
   body {
@@ -14,7 +15,7 @@
     display: flex;
     justify-content: center;
   }
-  .wrap { width: 100%; max-width: 420px; }
+  .wrap { width: 100%; max-width: 460px; }
   h1 {
     font-size: 18px;
     font-weight: 600;
@@ -22,6 +23,9 @@
     margin: 0 0 20px;
     color: #222;
   }
+  .step { display: none; }
+  .step.active { display: block; }
+
   .upload-box {
     background: #fff;
     border: 1.5px dashed #ccc;
@@ -37,9 +41,7 @@
     margin-top: 12px;
     display: none;
   }
-  .upload-box input[type=file] {
-    display: none;
-  }
+  .upload-box input[type=file] { display: none; }
   .upload-label {
     display: inline-block;
     padding: 10px 18px;
@@ -49,12 +51,9 @@
     cursor: pointer;
     font-size: 14px;
   }
-  .filename {
-    font-size: 12px;
-    color: #888;
-    margin-top: 8px;
-  }
-  #testBtn {
+  .filename { font-size: 12px; color: #888; margin-top: 8px; }
+
+  .btn {
     width: 100%;
     padding: 14px;
     font-size: 16px;
@@ -64,12 +63,102 @@
     border: none;
     border-radius: 10px;
     cursor: pointer;
-    margin-bottom: 24px;
+    margin-bottom: 12px;
   }
-  #testBtn:active { transform: scale(0.98); }
-  #testBtn:disabled { background: #aac2f2; cursor: not-allowed; }
+  .btn:active { transform: scale(0.98); }
+  .btn:disabled { background: #aac2f2; cursor: not-allowed; }
+  .btn.ghost { background: #fff; color: #333; border: 1px solid #ccc; }
 
-  #game { display: none; }
+  .progress-wrap {
+    background: #fff;
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 16px;
+    text-align: center;
+  }
+  .progress-bar-outer {
+    width: 100%;
+    height: 8px;
+    background: #eee;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 10px;
+  }
+  .progress-bar-inner {
+    height: 100%;
+    background: #2f6fed;
+    width: 0%;
+    transition: width 0.2s;
+  }
+  .progress-text { font-size: 13px; color: #666; margin-top: 8px; }
+
+  .review-note {
+    font-size: 13px;
+    color: #666;
+    background: #fff8e6;
+    border: 1px solid #f0e0a8;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 14px;
+    line-height: 1.5;
+  }
+
+  .word-row {
+    background: #fff;
+    border: 1px solid #e5e3dd;
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+  }
+  .word-row .fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin-bottom: 6px;
+  }
+  .word-row label {
+    font-size: 11px;
+    color: #999;
+    display: block;
+    margin-bottom: 2px;
+  }
+  .word-row input {
+    width: 100%;
+    padding: 6px 8px;
+    font-size: 14px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+  }
+  .word-row textarea {
+    width: 100%;
+    padding: 6px 8px;
+    font-size: 13px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    resize: vertical;
+    min-height: 40px;
+    font-family: inherit;
+  }
+  .word-row .remove-btn {
+    font-size: 12px;
+    color: #a5312c;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px 0 0;
+  }
+
+  .add-row-btn {
+    width: 100%;
+    padding: 10px;
+    font-size: 14px;
+    background: #fff;
+    border: 1px dashed #bbb;
+    border-radius: 8px;
+    color: #555;
+    cursor: pointer;
+    margin-bottom: 16px;
+  }
 
   .topbar {
     display: flex;
@@ -125,91 +214,87 @@
   .feedback.correct { color: #1e7a37; }
   .feedback.wrong { color: #a5312c; }
 
-  .final {
-    text-align: center;
-    padding: 40px 0;
-    display: none;
-  }
+  .final { text-align: center; padding: 40px 0; }
   .final h2 { font-size: 20px; margin-bottom: 8px; }
   .final p { color: #666; margin-bottom: 20px; }
-  #restartBtn {
-    padding: 12px 24px;
-    font-size: 15px;
-    background: #333;
-    color: #fff;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-  }
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>단어 퀴즈 게임</h1>
 
-  <div class="upload-box" id="uploadBox">
-    <label class="upload-label" for="fileInput">사진 올리기</label>
-    <input type="file" id="fileInput" accept="image/*">
-    <div class="filename" id="filename">단어장 사진을 올려주세요</div>
-    <img id="preview">
+  <div class="step active" id="stepUpload">
+    <div class="upload-box" id="uploadBox">
+      <label class="upload-label" for="fileInput">단어장 사진 올리기</label>
+      <input type="file" id="fileInput" accept="image/*">
+      <div class="filename" id="filename">단어장 사진을 올려주세요</div>
+      <img id="preview">
+    </div>
+    <button class="btn" id="ocrBtn" disabled>OCR로 단어 인식하기</button>
   </div>
 
-  <button id="testBtn">테스트 시작</button>
+  <div class="step" id="stepProgress">
+    <div class="progress-wrap">
+      <div id="progressLabel">인식 준비 중...</div>
+      <div class="progress-bar-outer"><div class="progress-bar-inner" id="progressBar"></div></div>
+      <div class="progress-text" id="progressPct">0%</div>
+    </div>
+  </div>
 
-  <div id="game">
+  <div class="step" id="stepReview">
+    <div class="review-note">
+      사진에서 자동으로 읽어낸 결과예요. OCR이 완벽하지 않을 수 있으니 단어 / 뜻 / 한국어 뜻을 확인하고 틀린 부분은 직접 고쳐주세요.
+    </div>
+    <div id="rowsContainer"></div>
+    <button class="add-row-btn" id="addRowBtn">+ 단어 직접 추가하기</button>
+    <button class="btn" id="startFromReviewBtn">이 단어로 게임 시작</button>
+    <button class="btn ghost" id="backToUploadBtn">사진 다시 올리기</button>
+  </div>
+
+  <div class="step" id="stepGame">
     <div class="topbar">
       <span id="progress">1 / 10</span>
       <span class="score" id="score">★ 0</span>
     </div>
-
     <div class="card">
       <div class="pos" id="pos"></div>
       <div class="def" id="def"></div>
     </div>
-
     <div class="label">단어</div>
     <div class="row">
       <button class="box word" id="w1"></button>
       <button class="box word" id="w2"></button>
     </div>
-
     <div class="label">한국어 뜻</div>
     <div class="row">
       <button class="box" id="k1"></button>
       <button class="box" id="k2"></button>
     </div>
-
     <div class="feedback" id="feedback"></div>
   </div>
 
-  <div class="final" id="final">
-    <h2>완료!</h2>
-    <p id="finalScore"></p>
-    <button id="restartBtn">다시하기</button>
+  <div class="step" id="stepFinal">
+    <div class="final">
+      <h2>완료!</h2>
+      <p id="finalScore"></p>
+      <button class="btn" id="restartBtn">같은 단어로 다시하기</button>
+      <button class="btn ghost" id="newPhotoBtn">다른 사진 올리기</button>
+    </div>
   </div>
 </div>
 
 <script>
-const words = [
-  {w:"proof", pos:"n.", def:"information, documents, etc. that show that something is true", kr:"증거, 증명"},
-  {w:"space", pos:"n.", def:"an area or a place that is empty", kr:"공간"},
-  {w:"important", pos:"adj.", def:"having a great effect on people or things; of great value", kr:"중요한"},
-  {w:"happen", pos:"v.", def:"to take place, especially without being planned", kr:"(일이) 일어나다"},
-  {w:"knock", pos:"v.", def:"to hit something so that it moves or breaks", kr:"치다"},
-  {w:"bowl", pos:"n.", def:"a deep round dish with a wide open top, used especially for holding food or liquid", kr:"그릇"},
-  {w:"learn", pos:"v.", def:"to gain knowledge or skill by studying, from experience, from being taught, etc.", kr:"배우다"},
-  {w:"pooped", pos:"adj.", def:"very tired", kr:"녹초가 된"},
-  {w:"crunch", pos:"v.", def:"to bite something noisily between your teeth when you are eating", kr:"아작아작 씹다"},
-  {w:"note", pos:"n.", def:"a short piece of writing", kr:"메모"}
-];
+const steps = ['stepUpload','stepProgress','stepReview','stepGame','stepFinal'];
+function showStep(name){
+  steps.forEach(s => document.getElementById(s).classList.toggle('active', s === name));
+}
 
+// ---------- Step 1: upload ----------
 const fileInput = document.getElementById('fileInput');
 const preview = document.getElementById('preview');
 const filename = document.getElementById('filename');
-const testBtn = document.getElementById('testBtn');
-const uploadBox = document.getElementById('uploadBox');
-const gameEl = document.getElementById('game');
-const finalEl = document.getElementById('final');
+const ocrBtn = document.getElementById('ocrBtn');
+let uploadedDataUrl = null;
 
 fileInput.addEventListener('change', (e) => {
   const file = e.target.files[0];
@@ -217,19 +302,158 @@ fileInput.addEventListener('change', (e) => {
   filename.textContent = file.name;
   const reader = new FileReader();
   reader.onload = (ev) => {
-    preview.src = ev.target.result;
+    uploadedDataUrl = ev.target.result;
+    preview.src = uploadedDataUrl;
     preview.style.display = 'block';
+    ocrBtn.disabled = false;
   };
   reader.readAsDataURL(file);
 });
 
-testBtn.addEventListener('click', () => {
-  uploadBox.style.display = 'none';
-  testBtn.style.display = 'none';
-  gameEl.style.display = 'block';
+// ---------- Step 2: OCR ----------
+const progressLabel = document.getElementById('progressLabel');
+const progressBar = document.getElementById('progressBar');
+const progressPct = document.getElementById('progressPct');
+
+ocrBtn.addEventListener('click', async () => {
+  if (!uploadedDataUrl) return;
+  showStep('stepProgress');
+  progressBar.style.width = '0%';
+  progressPct.textContent = '0%';
+  progressLabel.textContent = '이미지 인식 준비 중...';
+
+  try {
+    const result = await Tesseract.recognize(uploadedDataUrl, 'eng+kor', {
+      logger: (m) => {
+        if (m.status) {
+          const labelMap = {
+            'loading tesseract core': '엔진 불러오는 중...',
+            'initializing tesseract': '초기화 중...',
+            'loading language traineddata': '언어 데이터 불러오는 중...',
+            'initializing api': '준비 중...',
+            'recognizing text': '글자 인식 중...'
+          };
+          progressLabel.textContent = labelMap[m.status] || m.status;
+        }
+        if (typeof m.progress === 'number') {
+          const pct = Math.round(m.progress * 100);
+          progressBar.style.width = pct + '%';
+          progressPct.textContent = pct + '%';
+        }
+      }
+    });
+    const rawText = result.data.text;
+    const parsed = parseVocabText(rawText);
+    renderReviewRows(parsed.length ? parsed : [emptyRow()]);
+    showStep('stepReview');
+  } catch (err) {
+    progressLabel.textContent = '인식에 실패했어요. 사진을 다시 올려주세요.';
+    setTimeout(() => showStep('stepUpload'), 1800);
+  }
+});
+
+// ---------- Parsing ----------
+const HANGUL_RUN = /[\uAC00-\uD7A3][\uAC00-\uD7A3()\s,.'"·]*$/;
+const POS_TOKEN = /^(n|v|adj|adv|prep|conj)\.?$/i;
+
+function parseVocabText(text){
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  const rows = [];
+  for (const line of lines) {
+    const m = line.match(/^(\d{1,2})[.\s]+([A-Za-z][A-Za-z'-]*)\s+(.*)$/);
+    if (!m) continue;
+    const word = m[2];
+    let rest = m[3];
+
+    const restTokens = rest.split(/\s+/);
+    let pos = '';
+    if (restTokens.length && POS_TOKEN.test(restTokens[0].replace('.',''))) {
+      pos = restTokens[0].replace(/\.$/, '') + '.';
+      rest = restTokens.slice(1).join(' ');
+    }
+
+    let kr = '';
+    const krMatch = rest.match(HANGUL_RUN);
+    if (krMatch) {
+      kr = krMatch[0].trim().replace(/[.\s]+$/, '');
+      rest = rest.slice(0, krMatch.index).trim();
+    }
+
+    const def = rest.replace(/\s+/g, ' ').trim();
+
+    if (word && (def || kr)) {
+      rows.push({ word, pos, def, kr });
+    }
+  }
+  return rows;
+}
+
+function emptyRow(){
+  return { word: '', pos: '', def: '', kr: '' };
+}
+
+// ---------- Step 3: review & edit ----------
+const rowsContainer = document.getElementById('rowsContainer');
+
+function renderReviewRows(rows){
+  rowsContainer.innerHTML = '';
+  rows.forEach((r) => addRowEl(r));
+}
+
+function addRowEl(data){
+  const div = document.createElement('div');
+  div.className = 'word-row';
+  div.innerHTML = `
+    <div class="fields">
+      <div>
+        <label>단어 (word)</label>
+        <input type="text" class="f-word" value="${escapeHtml(data.word || '')}">
+      </div>
+      <div>
+        <label>한국어 뜻</label>
+        <input type="text" class="f-kr" value="${escapeHtml(data.kr || '')}">
+      </div>
+    </div>
+    <label>영어 정의 (definition)</label>
+    <textarea class="f-def">${escapeHtml(data.def || '')}</textarea>
+    <button class="remove-btn">삭제</button>
+  `;
+  div.querySelector('.remove-btn').addEventListener('click', () => div.remove());
+  rowsContainer.appendChild(div);
+}
+
+function escapeHtml(str){
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+document.getElementById('addRowBtn').addEventListener('click', () => addRowEl(emptyRow()));
+document.getElementById('backToUploadBtn').addEventListener('click', () => {
+  showStep('stepUpload');
+});
+
+let words = [];
+
+document.getElementById('startFromReviewBtn').addEventListener('click', () => {
+  const rowEls = rowsContainer.querySelectorAll('.word-row');
+  const collected = [];
+  rowEls.forEach(div => {
+    const word = div.querySelector('.f-word').value.trim();
+    const def = div.querySelector('.f-def').value.trim();
+    const kr = div.querySelector('.f-kr').value.trim();
+    if (word && (def || kr)) {
+      collected.push({ w: word, pos: '', def: def || kr, kr: kr || def });
+    }
+  });
+  if (collected.length < 2) {
+    alert('퀴즈를 만들려면 단어가 최소 2개 이상 필요해요.');
+    return;
+  }
+  words = collected;
+  showStep('stepGame');
   startGame();
 });
 
+// ---------- Step 4: game ----------
 let order, idx, score, locked;
 const defEl = document.getElementById('def');
 const posEl = document.getElementById('pos');
@@ -242,20 +466,17 @@ const progressEl = document.getElementById('progress');
 const scoreEl = document.getElementById('score');
 const finalScoreEl = document.getElementById('finalScore');
 
-function pickWrong(correctIdx) {
-  const pool = words.filter((x, i) => i !== correctIdx);
-  return pool[Math.floor(Math.random() * pool.length)];
+function pickWrong(correctIdx){
+  const pool = words.filter((x,i) => i !== correctIdx);
+  return pool[Math.floor(Math.random()*pool.length)];
 }
+function resetBox(btn){ btn.classList.remove('correct','wrong'); }
 
-function resetBox(btn) {
-  btn.classList.remove('correct', 'wrong');
-}
-
-function loadQuestion() {
+function loadQuestion(){
   locked = false;
   feedbackEl.textContent = '';
   feedbackEl.className = 'feedback';
-  [w1, w2, k1, k2].forEach(resetBox);
+  [w1,w2,k1,k2].forEach(resetBox);
 
   const correctIdx = order[idx];
   const item = words[correctIdx];
@@ -276,16 +497,16 @@ function loadQuestion() {
   k1.dataset.correct = krOnLeft ? "1" : "0";
   k2.dataset.correct = krOnLeft ? "0" : "1";
 
-  progressEl.textContent = (idx + 1) + ' / ' + words.length;
+  progressEl.textContent = (idx+1) + ' / ' + words.length;
 }
 
-function markCorrectAll() {
-  [w1, w2, k1, k2].forEach(b => {
+function markCorrectAll(){
+  [w1,w2,k1,k2].forEach(b => {
     if (b.dataset.correct === "1") b.classList.add('correct');
   });
 }
 
-function choose(btn) {
+function choose(btn){
   if (locked) return;
   locked = true;
   const isCorrect = btn.dataset.correct === "1";
@@ -304,24 +525,30 @@ function choose(btn) {
   setTimeout(() => {
     idx++;
     if (idx >= words.length) {
-      gameEl.style.display = 'none';
-      finalEl.style.display = 'block';
       finalScoreEl.textContent = score + ' / ' + words.length + ' 맞춤';
+      showStep('stepFinal');
     } else {
       loadQuestion();
     }
   }, 800);
 }
 
-[w1, w2, k1, k2].forEach(b => b.addEventListener('click', () => choose(b)));
+[w1,w2,k1,k2].forEach(b => b.addEventListener('click', () => choose(b)));
 
 document.getElementById('restartBtn').addEventListener('click', () => {
-  finalEl.style.display = 'none';
-  gameEl.style.display = 'block';
+  showStep('stepGame');
   startGame();
 });
+document.getElementById('newPhotoBtn').addEventListener('click', () => {
+  fileInput.value = '';
+  preview.style.display = 'none';
+  filename.textContent = '단어장 사진을 올려주세요';
+  ocrBtn.disabled = true;
+  uploadedDataUrl = null;
+  showStep('stepUpload');
+});
 
-function startGame() {
+function startGame(){
   order = [...Array(words.length).keys()].sort(() => Math.random() - 0.5);
   idx = 0;
   score = 0;
