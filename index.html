@@ -3,569 +3,430 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>단어 퀴즈 게임</title>
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<title>Parts of Plants 단어 게임</title>
 <style>
+  :root {
+    --green: #2E7D4F;
+    --green-dark: #1F5C39;
+    --green-light: #E8F5EC;
+    --leaf: #8BC34A;
+    --sun: #FFC107;
+    --sky: #EAF7F0;
+    --brown: #8D6E63;
+    --red: #E24C4B;
+    --text: #22321F;
+    --sub: #6b7d68;
+  }
   * { box-sizing: border-box; }
   body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Malgun Gothic", sans-serif;
-    background: #f5f4f0;
     margin: 0;
-    padding: 24px 16px;
+    font-family: "Trebuchet MS", "Noto Sans CJK KR", "Malgun Gothic", sans-serif;
+    background: linear-gradient(180deg, #EAF7F0 0%, #F7FBF4 100%);
+    color: var(--text);
+    min-height: 100vh;
     display: flex;
     justify-content: center;
+    align-items: flex-start;
+    padding: 24px 14px 60px 14px;
   }
-  .wrap { width: 100%; max-width: 460px; }
-  h1 {
-    font-size: 18px;
-    font-weight: 600;
-    text-align: center;
-    margin: 0 0 20px;
-    color: #222;
-  }
-  .step { display: none; }
-  .step.active { display: block; }
+  .app { width: 100%; max-width: 480px; }
 
-  .upload-box {
-    background: #fff;
-    border: 1.5px dashed #ccc;
-    border-radius: 12px;
-    padding: 20px;
-    text-align: center;
-    margin-bottom: 16px;
+  .brandbar {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 14px; justify-content: center;
   }
-  .upload-box img {
-    max-width: 100%;
-    max-height: 220px;
-    border-radius: 8px;
-    margin-top: 12px;
-    display: none;
+  .brandbar span {
+    font-size: 13px; font-weight: 800; color: var(--green-dark);
   }
-  .upload-box input[type=file] { display: none; }
-  .upload-label {
-    display: inline-block;
-    padding: 10px 18px;
-    background: #333;
+
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  /* ---------- Start screen ---------- */
+  .hero {
+    background: linear-gradient(135deg, var(--green) 0%, var(--green-dark) 100%);
+    border-radius: 22px;
+    padding: 30px 24px;
     color: #fff;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 14px;
-  }
-  .filename { font-size: 12px; color: #888; margin-top: 8px; }
-
-  .btn {
-    width: 100%;
-    padding: 14px;
-    font-size: 16px;
-    font-weight: 600;
-    color: #fff;
-    background: #2f6fed;
-    border: none;
-    border-radius: 10px;
-    cursor: pointer;
-    margin-bottom: 12px;
-  }
-  .btn:active { transform: scale(0.98); }
-  .btn:disabled { background: #aac2f2; cursor: not-allowed; }
-  .btn.ghost { background: #fff; color: #333; border: 1px solid #ccc; }
-
-  .progress-wrap {
-    background: #fff;
-    border-radius: 10px;
-    padding: 16px;
-    margin-bottom: 16px;
-    text-align: center;
-  }
-  .progress-bar-outer {
-    width: 100%;
-    height: 8px;
-    background: #eee;
-    border-radius: 4px;
+    margin-bottom: 18px;
+    position: relative;
     overflow: hidden;
-    margin-top: 10px;
-  }
-  .progress-bar-inner {
-    height: 100%;
-    background: #2f6fed;
-    width: 0%;
-    transition: width 0.2s;
-  }
-  .progress-text { font-size: 13px; color: #666; margin-top: 8px; }
-
-  .review-note {
-    font-size: 13px;
-    color: #666;
-    background: #fff8e6;
-    border: 1px solid #f0e0a8;
-    border-radius: 8px;
-    padding: 10px 12px;
-    margin-bottom: 14px;
-    line-height: 1.5;
-  }
-
-  .word-row {
-    background: #fff;
-    border: 1px solid #e5e3dd;
-    border-radius: 10px;
-    padding: 10px 12px;
-    margin-bottom: 8px;
-  }
-  .word-row .fields {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 6px;
-    margin-bottom: 6px;
-  }
-  .word-row label {
-    font-size: 11px;
-    color: #999;
-    display: block;
-    margin-bottom: 2px;
-  }
-  .word-row input {
-    width: 100%;
-    padding: 6px 8px;
-    font-size: 14px;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-  }
-  .word-row textarea {
-    width: 100%;
-    padding: 6px 8px;
-    font-size: 13px;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    resize: vertical;
-    min-height: 40px;
-    font-family: inherit;
-  }
-  .word-row .remove-btn {
-    font-size: 12px;
-    color: #a5312c;
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 4px 0 0;
-  }
-
-  .add-row-btn {
-    width: 100%;
-    padding: 10px;
-    font-size: 14px;
-    background: #fff;
-    border: 1px dashed #bbb;
-    border-radius: 8px;
-    color: #555;
-    cursor: pointer;
-    margin-bottom: 16px;
-  }
-
-  .topbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
-    font-size: 13px;
-    color: #666;
-  }
-  .score { font-weight: 600; color: #222; }
-
-  .card {
-    background: #fff;
-    border: 1px solid #e5e3dd;
-    border-radius: 12px;
-    padding: 24px 18px;
     text-align: center;
-    margin-bottom: 16px;
-    min-height: 110px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
   }
-  .pos { font-size: 12px; color: #999; margin-bottom: 6px; }
-  .def { font-size: 16px; line-height: 1.6; color: #222; }
+  .hero .big-emoji { font-size: 46px; margin-bottom: 6px; }
+  .hero h1 {
+    font-size: 23px; line-height: 1.4; margin: 0 0 6px 0; font-weight: 900;
+  }
+  .hero p {
+    font-size: 13.5px; color: #DFF3E6; margin: 0; line-height: 1.6;
+  }
 
-  .label { font-size: 12px; color: #999; margin-bottom: 6px; }
-  .row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    margin-bottom: 16px;
+  .mode-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+  .mode-card {
+    background: #fff; border: 2px solid #DCEEDF; border-radius: 16px;
+    padding: 16px 14px; cursor: pointer; text-align: left;
+    transition: transform 0.12s ease, border-color 0.12s ease;
   }
-  .box {
-    min-height: 52px;
-    padding: 8px;
-    background: #fff;
-    border: 1px solid #ddd;
-    border-radius: 10px;
-    font-size: 16px;
-    cursor: pointer;
-  }
-  .box.word { font-weight: 600; font-size: 17px; }
-  .box.correct { border-color: #2fa84f; background: #eaf8ee; color: #1e7a37; }
-  .box.wrong { border-color: #e0453f; background: #fdecec; color: #a5312c; }
+  .mode-card:hover { border-color: var(--green); transform: translateY(-2px); }
+  .mode-card.full { grid-column: 1 / -1; background: var(--green); border-color: var(--green); }
+  .mode-card.full .mode-title, .mode-card.full .mode-sub { color: #fff; }
+  .mode-card.full .mode-sub { color: #DFF3E6; }
+  .mode-emoji { font-size: 22px; margin-bottom: 6px; }
+  .mode-title { font-size: 15px; font-weight: 800; color: var(--green-dark); margin-bottom: 3px; }
+  .mode-sub { font-size: 11.5px; color: var(--sub); }
 
-  .feedback {
-    text-align: center;
-    font-size: 14px;
-    min-height: 20px;
-    margin-top: 4px;
+  /* ---------- Game screen ---------- */
+  .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .subject-badge {
+    font-size: 12px; font-weight: 800; color: var(--green-dark);
+    background: var(--green-light); padding: 5px 12px; border-radius: 20px;
   }
-  .feedback.correct { color: #1e7a37; }
-  .feedback.wrong { color: #a5312c; }
+  .stat-group { display: flex; gap: 10px; align-items: center; }
+  .streak { font-size: 13px; font-weight: 800; color: var(--sun); }
+  .score { font-size: 13px; font-weight: 800; color: var(--green-dark); }
 
-  .final { text-align: center; padding: 40px 0; }
-  .final h2 { font-size: 20px; margin-bottom: 8px; }
-  .final p { color: #666; margin-bottom: 20px; }
+  .progress-track { width: 100%; height: 10px; background: #DCEEDF; border-radius: 6px; overflow: hidden; margin-bottom: 18px; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--leaf), var(--green)); width: 0%; transition: width 0.35s ease; border-radius: 6px; }
+
+  .qcounter { font-size: 12.5px; color: var(--sub); font-weight: 800; margin-bottom: 8px; text-align: center; }
+
+  .qcard {
+    background: #fff; border-radius: 20px; padding: 26px 20px;
+    box-shadow: 0 6px 18px rgba(46,125,79,0.12);
+    margin-bottom: 16px; min-height: 100px; text-align: center;
+  }
+  .qtag {
+    display: inline-block; font-size: 11px; font-weight: 800; color: var(--green);
+    background: var(--green-light); padding: 3px 10px; border-radius: 12px; margin-bottom: 10px;
+  }
+  .qtext { font-size: 17px; font-weight: 800; line-height: 1.5; color: var(--text); }
+  .qtext .accent { color: var(--green-dark); }
+
+  .options { display: flex; flex-direction: column; gap: 10px; }
+  .opt {
+    display: flex; align-items: center; gap: 10px;
+    background: #fff; border: 2px solid #DCEEDF; border-radius: 14px;
+    padding: 14px 16px; font-size: 15px; font-weight: 700; cursor: pointer;
+    transition: border-color 0.12s ease, background 0.12s ease, transform 0.08s ease;
+    text-align: left;
+  }
+  .opt:hover:not(.disabled) { border-color: var(--green); transform: translateX(2px); }
+  .opt .letter {
+    flex: 0 0 28px; height: 28px; border-radius: 50%;
+    background: var(--green-light); color: var(--green-dark);
+    font-weight: 800; font-size: 13px; display: flex; align-items: center; justify-content: center;
+  }
+  .opt.correct { background: #EAF6EE; border-color: var(--green); }
+  .opt.correct .letter { background: var(--green); color: #fff; }
+  .opt.wrong { background: #FBEAE8; border-color: var(--red); }
+  .opt.wrong .letter { background: var(--red); color: #fff; }
+  .opt.disabled { cursor: default; }
+
+  .feedback { display: none; margin-top: 14px; padding: 14px 16px; border-radius: 14px; font-size: 13.5px; line-height: 1.6; }
+  .feedback.show { display: block; }
+  .feedback.correct { background: #EAF6EE; color: #1F5C39; border: 2px solid #BEE3C8; }
+  .feedback.wrong { background: #FBEAE8; color: #8a2e24; border: 2px solid #f3d0cc; }
+  .feedback b { display: block; margin-bottom: 4px; font-size: 14px; }
+
+  .next-btn {
+    margin-top: 16px; width: 100%; padding: 15px; border: none; border-radius: 14px;
+    background: var(--green); color: #fff; font-size: 16px; font-weight: 800; cursor: pointer; display: none;
+  }
+  .next-btn.show { display: block; }
+  .next-btn:hover { background: var(--green-dark); }
+
+  /* ---------- Result screen ---------- */
+  .result-hero {
+    text-align: center; background: linear-gradient(135deg, var(--green), var(--green-dark));
+    border-radius: 22px; padding: 34px 20px; color: #fff; margin-bottom: 18px;
+  }
+  .result-emoji { font-size: 50px; }
+  .result-grade { font-size: 44px; font-weight: 900; color: var(--sun); margin: 4px 0; }
+  .result-score { font-size: 15px; color: #DFF3E6; }
+  .result-msg { font-size: 13.5px; color: #EFFbF2; margin-top: 10px; }
+
+  .review-item { background: #fff; border-radius: 14px; padding: 14px 16px; margin-bottom: 8px; border-left: 5px solid #DCEEDF; }
+  .review-item.correct { border-left-color: var(--green); }
+  .review-item.wrong { border-left-color: var(--red); }
+  .review-item .rtag { font-size: 11px; font-weight: 800; color: var(--sub); margin-bottom: 4px; }
+  .review-item .rq { font-size: 13.5px; font-weight: 700; margin-bottom: 4px; }
+  .review-item .ra { font-size: 12.5px; color: var(--sub); }
+
+  .retry-btn {
+    width: 100%; padding: 15px; border: none; border-radius: 14px;
+    background: var(--sun); color: #4a3300; font-size: 16px; font-weight: 800; cursor: pointer; margin-top: 16px;
+  }
+  .home-btn {
+    width: 100%; padding: 13px; border: 2px solid #DCEEDF; border-radius: 14px;
+    background: #fff; color: var(--green-dark); font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 8px;
+  }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <h1>단어 퀴즈 게임</h1>
+<div class="app">
 
-  <div class="step active" id="stepUpload">
-    <div class="upload-box" id="uploadBox">
-      <label class="upload-label" for="fileInput">단어장 사진 올리기</label>
-      <input type="file" id="fileInput" accept="image/*">
-      <div class="filename" id="filename">단어장 사진을 올려주세요</div>
-      <img id="preview">
+  <div class="brandbar"><span>🌱 Subject Link 1 · Lesson 1. Parts of Plants 🌱</span></div>
+
+  <!-- START SCREEN -->
+  <div class="screen active" id="startScreen">
+    <div class="hero">
+      <div class="big-emoji">🌻</div>
+      <h1>식물 단어 퀴즈 게임</h1>
+      <p>12개 단어를 게임으로 재미있게 외워봐요! 정답을 맞힐 때마다 콤보가 쌓여요 🔥</p>
     </div>
-    <button class="btn" id="ocrBtn" disabled>OCR로 단어 인식하기</button>
+
+    <div class="mode-grid">
+      <div class="mode-card full" onclick="startGame('all')">
+        <div class="mode-emoji">🏆</div>
+        <div class="mode-title">전체 도전 (24문제)</div>
+        <div class="mode-sub">영어 뜻 맞추기 + 한글 뜻 맞추기 모두!</div>
+      </div>
+      <div class="mode-card" onclick="startGame('eng')">
+        <div class="mode-emoji">🇬🇧</div>
+        <div class="mode-title">영어 뜻 맞추기</div>
+        <div class="mode-sub">12문제</div>
+      </div>
+      <div class="mode-card" onclick="startGame('kor')">
+        <div class="mode-emoji">🇰🇷</div>
+        <div class="mode-title">한글 뜻 맞추기</div>
+        <div class="mode-sub">12문제</div>
+      </div>
+    </div>
   </div>
 
-  <div class="step" id="stepProgress">
-    <div class="progress-wrap">
-      <div id="progressLabel">인식 준비 중...</div>
-      <div class="progress-bar-outer"><div class="progress-bar-inner" id="progressBar"></div></div>
-      <div class="progress-text" id="progressPct">0%</div>
-    </div>
-  </div>
-
-  <div class="step" id="stepReview">
-    <div class="review-note">
-      자동 인식에서 단어를 충분히 찾지 못했어요. 아래에서 단어 / 뜻 / 한국어 뜻을 채우거나 고친 뒤 게임을 시작해주세요.
-    </div>
-    <div id="rowsContainer"></div>
-    <button class="add-row-btn" id="addRowBtn">+ 단어 직접 추가하기</button>
-    <button class="btn" id="startFromReviewBtn">이 단어로 게임 시작</button>
-    <button class="btn ghost" id="backToUploadBtn">사진 다시 올리기</button>
-  </div>
-
-  <div class="step" id="stepGame">
+  <!-- GAME SCREEN -->
+  <div class="screen" id="gameScreen">
     <div class="topbar">
-      <span id="progress">1 / 10</span>
-      <span class="score" id="score">★ 0</span>
+      <span class="subject-badge" id="subjectBadge">모드</span>
+      <div class="stat-group">
+        <span class="streak" id="streakDisplay">🔥 0</span>
+        <span class="score" id="scoreDisplay">⭐ 0</span>
+      </div>
     </div>
-    <div class="card">
-      <div class="pos" id="pos"></div>
-      <div class="def" id="def"></div>
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="qcounter" id="qCounter">문제 1 / 24</div>
+
+    <div class="qcard">
+      <div class="qtag" id="qTag">영어 뜻</div>
+      <div class="qtext" id="qText">문제 텍스트</div>
     </div>
-    <div class="label">단어</div>
-    <div class="row">
-      <button class="box word" id="w1"></button>
-      <button class="box word" id="w2"></button>
+
+    <div class="options" id="optionsBox"></div>
+
+    <div class="feedback" id="feedbackBox">
+      <b id="feedbackTitle"></b>
+      <span id="feedbackText"></span>
     </div>
-    <div class="label">한국어 뜻</div>
-    <div class="row">
-      <button class="box" id="k1"></button>
-      <button class="box" id="k2"></button>
-    </div>
-    <div class="feedback" id="feedback"></div>
+
+    <button class="next-btn" id="nextBtn" onclick="nextQuestion()">다음 문제 🌿</button>
   </div>
 
-  <div class="step" id="stepFinal">
-    <div class="final">
-      <h2>완료!</h2>
-      <p id="finalScore"></p>
-      <button class="btn" id="restartBtn">같은 단어로 다시하기</button>
-      <button class="btn ghost" id="newPhotoBtn">다른 사진 올리기</button>
+  <!-- RESULT SCREEN -->
+  <div class="screen" id="resultScreen">
+    <div class="result-hero">
+      <div class="result-emoji" id="resultEmoji">🌟</div>
+      <div style="font-size:13px;color:#DFF3E6;">게임 완료!</div>
+      <div class="result-grade" id="resultGrade">A</div>
+      <div class="result-score" id="resultScoreText">24문제 중 0문제 정답</div>
+      <div class="result-msg" id="resultMsg"></div>
     </div>
+
+    <div id="reviewList"></div>
+
+    <button class="retry-btn" onclick="location.reload()">다시 도전하기 🔄</button>
+    <button class="home-btn" onclick="location.reload()">처음 화면으로</button>
   </div>
+
 </div>
 
 <script>
-const steps = ['stepUpload','stepProgress','stepReview','stepGame','stepFinal'];
-function showStep(name){
-  steps.forEach(s => document.getElementById(s).classList.toggle('active', s === name));
-}
+const WORDS = [
+  { word: "flower", pos: "noun", def: "a colorful part of a plant", kor: "꽃" },
+  { word: "root", pos: "noun", def: "a part of a plant that gets water and food from the soil", kor: "뿌리" },
+  { word: "stem", pos: "noun", def: "a long plant part that leaves and flowers grow on", kor: "줄기" },
+  { word: "leaf", pos: "noun", def: "a green part of a plant that grows from a stem", kor: "잎" },
+  { word: "seed", pos: "noun", def: "a small object that can grow a new plant", kor: "씨앗" },
+  { word: "soil", pos: "noun", def: "dirt that plants grow in", kor: "토양" },
+  { word: "plant", pos: "noun", def: "a thing that grows in the ground and often has roots, stems, leaves, and flowers", kor: "식물" },
+  { word: "in common", pos: "", def: "to have similar interests or characteristics", kor: "공통점이 많은" },
+  { word: "eventually", pos: "adverb", def: "finally", kor: "결국" },
+  { word: "nutrient", pos: "noun", def: "a substance in food that helps living things survive and grow", kor: "영양소" },
+  { word: "allow", pos: "verb", def: "to make it possible for someone to do something or something to happen", kor: "~을 하도록 허락하다" },
+  { word: "sunlight", pos: "noun", def: "light from the sun", kor: "햇빛" },
+];
 
-// ---------- Step 1: upload ----------
-const fileInput = document.getElementById('fileInput');
-const preview = document.getElementById('preview');
-const filename = document.getElementById('filename');
-const ocrBtn = document.getElementById('ocrBtn');
-let uploadedDataUrl = null;
-
-fileInput.addEventListener('change', (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  filename.textContent = file.name;
-  const reader = new FileReader();
-  reader.onload = (ev) => {
-    uploadedDataUrl = ev.target.result;
-    preview.src = uploadedDataUrl;
-    preview.style.display = 'block';
-    ocrBtn.disabled = false;
-  };
-  reader.readAsDataURL(file);
-});
-
-// ---------- Step 2: OCR ----------
-const progressLabel = document.getElementById('progressLabel');
-const progressBar = document.getElementById('progressBar');
-const progressPct = document.getElementById('progressPct');
-
-ocrBtn.addEventListener('click', async () => {
-  if (!uploadedDataUrl) return;
-  showStep('stepProgress');
-  progressBar.style.width = '0%';
-  progressPct.textContent = '0%';
-  progressLabel.textContent = '이미지 인식 준비 중...';
-
-  try {
-    const result = await Tesseract.recognize(uploadedDataUrl, 'eng+kor', {
-      logger: (m) => {
-        if (m.status) {
-          const labelMap = {
-            'loading tesseract core': '엔진 불러오는 중...',
-            'initializing tesseract': '초기화 중...',
-            'loading language traineddata': '언어 데이터 불러오는 중...',
-            'initializing api': '준비 중...',
-            'recognizing text': '글자 인식 중...'
-          };
-          progressLabel.textContent = labelMap[m.status] || m.status;
-        }
-        if (typeof m.progress === 'number') {
-          const pct = Math.round(m.progress * 100);
-          progressBar.style.width = pct + '%';
-          progressPct.textContent = pct + '%';
-        }
-      }
-    });
-    const rawText = result.data.text;
-    const parsed = parseVocabText(rawText);
-
-    if (parsed.length >= 2) {
-      words = parsed.map(r => ({
-        w: r.word,
-        pos: r.pos,
-        def: r.def || r.kr,
-        kr: r.kr || r.def
-      }));
-      showStep('stepGame');
-      startGame();
-    } else {
-      renderReviewRows(parsed.length ? parsed : [emptyRow()]);
-      showStep('stepReview');
-    }
-  } catch (err) {
-    progressLabel.textContent = '인식에 실패했어요. 사진을 다시 올려주세요.';
-    setTimeout(() => showStep('stepUpload'), 1800);
+function shuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
   }
-});
-
-// ---------- Parsing ----------
-const HANGUL_RUN = /[\uAC00-\uD7A3][\uAC00-\uD7A3()\s,.'"·]*$/;
-const POS_TOKEN = /^(n|v|adj|adv|prep|conj)\.?$/i;
-
-function parseVocabText(text){
-  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-  const rows = [];
-  for (const line of lines) {
-    const m = line.match(/^(\d{1,2})[.\s]+([A-Za-z][A-Za-z'-]*)\s+(.*)$/);
-    if (!m) continue;
-    const word = m[2];
-    let rest = m[3];
-
-    const restTokens = rest.split(/\s+/);
-    let pos = '';
-    if (restTokens.length && POS_TOKEN.test(restTokens[0].replace('.',''))) {
-      pos = restTokens[0].replace(/\.$/, '') + '.';
-      rest = restTokens.slice(1).join(' ');
-    }
-
-    let kr = '';
-    const krMatch = rest.match(HANGUL_RUN);
-    if (krMatch) {
-      kr = krMatch[0].trim().replace(/[.\s]+$/, '');
-      rest = rest.slice(0, krMatch.index).trim();
-    }
-
-    const def = rest.replace(/\s+/g, ' ').trim();
-
-    if (word && (def || kr)) {
-      rows.push({ word, pos, def, kr });
-    }
-  }
-  return rows;
+  return a;
 }
 
-function emptyRow(){
-  return { word: '', pos: '', def: '', kr: '' };
+function buildDistractors(correctWord, n) {
+  const pool = WORDS.filter(w => w.word !== correctWord).map(w => w.word);
+  return shuffle(pool).slice(0, n);
 }
 
-// ---------- Step 3: review & edit ----------
-const rowsContainer = document.getElementById('rowsContainer');
-
-function renderReviewRows(rows){
-  rowsContainer.innerHTML = '';
-  rows.forEach((r) => addRowEl(r));
-}
-
-function addRowEl(data){
-  const div = document.createElement('div');
-  div.className = 'word-row';
-  div.innerHTML = `
-    <div class="fields">
-      <div>
-        <label>단어 (word)</label>
-        <input type="text" class="f-word" value="${escapeHtml(data.word || '')}">
-      </div>
-      <div>
-        <label>한국어 뜻</label>
-        <input type="text" class="f-kr" value="${escapeHtml(data.kr || '')}">
-      </div>
-    </div>
-    <label>영어 정의 (definition)</label>
-    <textarea class="f-def">${escapeHtml(data.def || '')}</textarea>
-    <button class="remove-btn">삭제</button>
-  `;
-  div.querySelector('.remove-btn').addEventListener('click', () => div.remove());
-  rowsContainer.appendChild(div);
-}
-
-function escapeHtml(str){
-  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-document.getElementById('addRowBtn').addEventListener('click', () => addRowEl(emptyRow()));
-document.getElementById('backToUploadBtn').addEventListener('click', () => {
-  showStep('stepUpload');
-});
-
-let words = [];
-
-document.getElementById('startFromReviewBtn').addEventListener('click', () => {
-  const rowEls = rowsContainer.querySelectorAll('.word-row');
-  const collected = [];
-  rowEls.forEach(div => {
-    const word = div.querySelector('.f-word').value.trim();
-    const def = div.querySelector('.f-def').value.trim();
-    const kr = div.querySelector('.f-kr').value.trim();
-    if (word && (def || kr)) {
-      collected.push({ w: word, pos: '', def: def || kr, kr: kr || def });
-    }
-  });
-  if (collected.length < 2) {
-    alert('퀴즈를 만들려면 단어가 최소 2개 이상 필요해요.');
-    return;
-  }
-  words = collected;
-  showStep('stepGame');
-  startGame();
-});
-
-// ---------- Step 4: game ----------
-let order, idx, score, locked;
-const defEl = document.getElementById('def');
-const posEl = document.getElementById('pos');
-const w1 = document.getElementById('w1');
-const w2 = document.getElementById('w2');
-const k1 = document.getElementById('k1');
-const k2 = document.getElementById('k2');
-const feedbackEl = document.getElementById('feedback');
-const progressEl = document.getElementById('progress');
-const scoreEl = document.getElementById('score');
-const finalScoreEl = document.getElementById('finalScore');
-
-function pickWrong(correctIdx){
-  const pool = words.filter((x,i) => i !== correctIdx);
-  return pool[Math.floor(Math.random()*pool.length)];
-}
-function resetBox(btn){ btn.classList.remove('correct','wrong'); }
-
-function loadQuestion(){
-  locked = false;
-  feedbackEl.textContent = '';
-  feedbackEl.className = 'feedback';
-  [w1,w2,k1,k2].forEach(resetBox);
-
-  const correctIdx = order[idx];
-  const item = words[correctIdx];
-  const wrong = pickWrong(correctIdx);
-
-  defEl.textContent = item.def;
-  posEl.textContent = item.pos;
-
-  const wordOnLeft = Math.random() < 0.5;
-  w1.textContent = wordOnLeft ? item.w : wrong.w;
-  w2.textContent = wordOnLeft ? wrong.w : item.w;
-  w1.dataset.correct = wordOnLeft ? "1" : "0";
-  w2.dataset.correct = wordOnLeft ? "0" : "1";
-
-  const krOnLeft = Math.random() < 0.5;
-  k1.textContent = krOnLeft ? item.kr : wrong.kr;
-  k2.textContent = krOnLeft ? wrong.kr : item.kr;
-  k1.dataset.correct = krOnLeft ? "1" : "0";
-  k2.dataset.correct = krOnLeft ? "0" : "1";
-
-  progressEl.textContent = (idx+1) + ' / ' + words.length;
-}
-
-function markCorrectAll(){
-  [w1,w2,k1,k2].forEach(b => {
-    if (b.dataset.correct === "1") b.classList.add('correct');
+function makeEngQuestions() {
+  return WORDS.map(w => {
+    const distractors = buildDistractors(w.word, 3);
+    const options = shuffle([w.word, ...distractors]);
+    return {
+      type: "영어 뜻",
+      q: `다음 영어 설명에 맞는 단어는?\n"${w.def}"`,
+      options,
+      answer: options.indexOf(w.word),
+      explain: `${w.word} (${w.pos || "표현"}) — ${w.kor} : ${w.def}`
+    };
   });
 }
 
-function choose(btn){
-  if (locked) return;
-  locked = true;
-  const isCorrect = btn.dataset.correct === "1";
-  if (isCorrect) {
-    btn.classList.add('correct');
-    feedbackEl.textContent = '정답!';
-    feedbackEl.className = 'feedback correct';
-    score++;
-    scoreEl.textContent = '★ ' + score;
+function makeKorQuestions() {
+  return WORDS.map(w => {
+    const distractors = buildDistractors(w.word, 3);
+    const options = shuffle([w.word, ...distractors]);
+    return {
+      type: "한글 뜻",
+      q: `'${w.kor}' 의 뜻을 가진 영어 단어는?`,
+      options,
+      answer: options.indexOf(w.word),
+      explain: `${w.word} (${w.pos || "표현"}) — ${w.kor} : ${w.def}`
+    };
+  });
+}
+
+let currentSet = [];
+let currentIndex = 0;
+let score = 0;
+let streak = 0;
+let maxStreak = 0;
+let results = [];
+let answered = false;
+
+function startGame(mode) {
+  if (mode === 'all') {
+    currentSet = shuffle([...makeEngQuestions(), ...makeKorQuestions()]);
+  } else if (mode === 'eng') {
+    currentSet = shuffle(makeEngQuestions());
   } else {
-    btn.classList.add('wrong');
-    markCorrectAll();
-    feedbackEl.textContent = '오답';
-    feedbackEl.className = 'feedback wrong';
+    currentSet = shuffle(makeKorQuestions());
   }
-  setTimeout(() => {
-    idx++;
-    if (idx >= words.length) {
-      finalScoreEl.textContent = score + ' / ' + words.length + ' 맞춤';
-      showStep('stepFinal');
-    } else {
-      loadQuestion();
-    }
-  }, 800);
+  currentIndex = 0;
+  score = 0;
+  streak = 0;
+  maxStreak = 0;
+  results = [];
+
+  document.getElementById('startScreen').classList.remove('active');
+  document.getElementById('gameScreen').classList.add('active');
+  renderQuestion();
 }
 
-[w1,w2,k1,k2].forEach(b => b.addEventListener('click', () => choose(b)));
+function renderQuestion() {
+  answered = false;
+  const q = currentSet[currentIndex];
+  document.getElementById('subjectBadge').textContent = q.type;
+  document.getElementById('qTag').textContent = q.type;
+  document.getElementById('qCounter').textContent = `문제 ${currentIndex + 1} / ${currentSet.length}`;
+  document.getElementById('qText').textContent = q.q;
+  document.getElementById('scoreDisplay').textContent = `⭐ ${score}`;
+  document.getElementById('streakDisplay').textContent = `🔥 ${streak}`;
+  document.getElementById('progressFill').style.width = `${(currentIndex / currentSet.length) * 100}%`;
 
-document.getElementById('restartBtn').addEventListener('click', () => {
-  showStep('stepGame');
-  startGame();
-});
-document.getElementById('newPhotoBtn').addEventListener('click', () => {
-  fileInput.value = '';
-  preview.style.display = 'none';
-  filename.textContent = '단어장 사진을 올려주세요';
-  ocrBtn.disabled = true;
-  uploadedDataUrl = null;
-  showStep('stepUpload');
-});
+  const box = document.getElementById('optionsBox');
+  box.innerHTML = '';
+  const letters = ['A', 'B', 'C', 'D'];
+  q.options.forEach((opt, idx) => {
+    const div = document.createElement('div');
+    div.className = 'opt';
+    div.innerHTML = `<span class="letter">${letters[idx]}</span><span>${opt}</span>`;
+    div.onclick = () => selectOption(idx, div);
+    box.appendChild(div);
+  });
 
-function startGame(){
-  order = [...Array(words.length).keys()].sort(() => Math.random() - 0.5);
-  idx = 0;
-  score = 0;
-  scoreEl.textContent = '★ 0';
-  loadQuestion();
+  document.getElementById('feedbackBox').classList.remove('show', 'correct', 'wrong');
+  document.getElementById('nextBtn').classList.remove('show');
+}
+
+function selectOption(idx, el) {
+  if (answered) return;
+  answered = true;
+  const q = currentSet[currentIndex];
+  const isCorrect = idx === q.answer;
+  const opts = document.querySelectorAll('.opt');
+
+  opts.forEach((o, i) => {
+    o.classList.add('disabled');
+    if (i === q.answer) o.classList.add('correct');
+    if (i === idx && !isCorrect) o.classList.add('wrong');
+  });
+
+  const fb = document.getElementById('feedbackBox');
+  const fbTitle = document.getElementById('feedbackTitle');
+  const fbText = document.getElementById('feedbackText');
+
+  if (isCorrect) {
+    score += 10 + streak * 2;
+    streak += 1;
+    maxStreak = Math.max(maxStreak, streak);
+    fb.classList.add('show', 'correct');
+    fbTitle.textContent = streak > 1 ? `정답이에요! 🔥 ${streak}콤보` : '정답이에요! 🎉';
+  } else {
+    streak = 0;
+    fb.classList.add('show', 'wrong');
+    fbTitle.textContent = '아쉬워요, 다시 한번 확인해볼까요?';
+  }
+  fbText.textContent = q.explain;
+
+  results.push({ q: q.q.replace(/\n/g, ' '), type: q.type, correct: isCorrect, explain: q.explain, correctAnswer: q.options[q.answer] });
+
+  document.getElementById('scoreDisplay').textContent = `⭐ ${score}`;
+  document.getElementById('streakDisplay').textContent = `🔥 ${streak}`;
+  document.getElementById('nextBtn').classList.add('show');
+  document.getElementById('nextBtn').textContent = currentIndex === currentSet.length - 1 ? '결과 보기 🏁' : '다음 문제 🌿';
+}
+
+function nextQuestion() {
+  currentIndex += 1;
+  if (currentIndex >= currentSet.length) {
+    showResult();
+  } else {
+    renderQuestion();
+  }
+}
+
+function showResult() {
+  document.getElementById('gameScreen').classList.remove('active');
+  document.getElementById('resultScreen').classList.add('active');
+
+  const correctCount = results.filter(r => r.correct).length;
+  const total = results.length;
+  const pct = correctCount / total;
+
+  let grade = 'D', emoji = '🌱', msg = '단어를 다시 한번 천천히 살펴볼까요?';
+  if (pct >= 0.9) { grade = 'S'; emoji = '🌳'; msg = '완벽해요! 식물 단어 박사님이네요!'; }
+  else if (pct >= 0.75) { grade = 'A'; emoji = '🌻'; msg = '아주 잘했어요! 틀린 문제만 한 번 더 봐요.'; }
+  else if (pct >= 0.5) { grade = 'B'; emoji = '🌿'; msg = '잘하고 있어요! 조금만 더 연습해봐요.'; }
+  else { grade = 'C'; emoji = '🌱'; msg = '처음엔 어려울 수 있어요. 다시 도전해봐요!'; }
+
+  document.getElementById('resultEmoji').textContent = emoji;
+  document.getElementById('resultGrade').textContent = grade;
+  document.getElementById('resultScoreText').textContent = `${total}문제 중 ${correctCount}문제 정답 · 점수 ${score}점 · 최고 콤보 ${maxStreak}`;
+  document.getElementById('resultMsg').textContent = msg;
+
+  const list = document.getElementById('reviewList');
+  list.innerHTML = '';
+  results.forEach((r) => {
+    const div = document.createElement('div');
+    div.className = `review-item ${r.correct ? 'correct' : 'wrong'}`;
+    div.innerHTML = `
+      <div class="rtag">${r.type} · ${r.correct ? '정답' : '오답'}</div>
+      <div class="rq">${r.q}</div>
+      <div class="ra">${r.correct ? '' : '정답: ' + r.correctAnswer + ' — '}${r.explain}</div>
+    `;
+    list.appendChild(div);
+  });
 }
 </script>
 </body>
